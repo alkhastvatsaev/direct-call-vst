@@ -1,0 +1,10 @@
+{
+  "rules": {
+    "calls": {
+      "alkhast-sheila": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}

@@ -1,30 +1,34 @@
-import { Peer } from 'peerjs';
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, onValue, set, push, onChildAdded, remove } from "firebase/database";
+
+const firebaseConfig = {
+  projectId: "direct-call-vatsaev-123",
+  appId: "1:654046710966:web:853363024e93d85b93aa17",
+  apiKey: "AIzaSyBOw4dsLEnblkOlcENw6TPluKyN0NL8APw",
+  authDomain: "direct-call-vatsaev-123.firebaseapp.com",
+  databaseURL: "https://direct-call-vatsaev-123-default-rtdb.firebaseio.com"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const servers = {
+  iceServers: [
+    { urls: ["stun:stun1.l.google.com:19302", "stun:stun2.l.google.com:19302"] },
+  ],
+  iceCandidatePoolSize: 10,
+};
+
+let pc = new RTCPeerConnection(servers);
+let localStream = null;
+let remoteStream = null;
 
 const HUBBY_ID = 'alkhast';
 const WIFEY_ID = 'sheila';
-
-const peerConfig = {
-  config: {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      { urls: 'stun:stun3.l.google.com:19302' },
-      { urls: 'stun:stun.voiparound.com' },
-      { urls: 'stun:stun.voipskip.com' },
-    ],
-    iceCandidatePoolSize: 10,
-  },
-};
-
 let userRole = localStorage.getItem('direct_call_role'); 
-let peer;
-let localStream;
-let activeCall;
-let audioContext;
-let analyser;
 
-const sphere = document.getElementById('sphere');
+const sphereAlkhast = document.getElementById('sphere-alkhast');
+const sphereSheila = document.getElementById('sphere-sheila');
 const statusText = document.getElementById('status-text');
 
 if (!userRole) {
@@ -39,134 +43,101 @@ function showRoleSelector() {
   overlay.innerHTML = `
     <h2>Qui utilise ce téléphone ?</h2>
     <div class="btn-group">
-      <button id="set-alkhast">Mari (Alkhas)</button>
-      <button id="set-sheila">Femme (Sheïla)</button>
+      <button id="set-alkhast">Alkhast (Mari)</button>
+      <button id="set-sheila">Sheïla (Femme)</button>
     </div>
   `;
   document.body.appendChild(overlay);
-
-  document.getElementById('set-alkhast').onclick = () => {
-    localStorage.setItem('direct_call_role', 'hubby');
-    location.reload();
-  };
-  document.getElementById('set-sheila').onclick = () => {
-    localStorage.setItem('direct_call_role', 'wifey');
-    location.reload();
-  };
+  document.getElementById('set-alkhast').onclick = () => { localStorage.setItem('direct_call_role', 'hubby'); location.reload(); };
+  document.getElementById('set-sheila').onclick = () => { localStorage.setItem('direct_call_role', 'wifey'); location.reload(); };
 }
 
 async function initApp() {
-  const myId = userRole === 'hubby' ? HUBBY_ID : WIFEY_ID;
-  const targetId = userRole === 'hubby' ? WIFEY_ID : HUBBY_ID;
+  statusText.innerText = "ACCÈS MICRO...";
+  localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 } });
+  localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
 
-  peer = new Peer(myId, peerConfig);
+  // Visualizer pour MOI
+  const mySphere = userRole === 'hubby' ? sphereAlkhast : sphereSheila;
+  startVisualizer(localStream, mySphere);
 
-  // Demande micro dès le départ
-  await getMedia();
-
-  peer.on('open', () => {
-    statusText.innerText = "PRÊT";
-    attemptAutoCall(targetId);
-  });
-
-  peer.on('call', async (call) => {
-    if (!localStream) await getMedia();
-    call.answer(localStream);
-    handleStream(call);
-    activeCall = call;
-  });
-
-  peer.on('error', (err) => {
-    if (err.type === 'peer-unavailable') {
-      statusText.innerText = `RECHERCHE...`;
-    }
-  });
-
-  // Reconnexion auto
-  setInterval(() => {
-    if (!activeCall || !activeCall.open) {
-      attemptAutoCall(targetId);
-    }
-  }, 4000);
-
-  // Démarrer l'animation de volume
-  if (localStream) startVisualizer(localStream);
-}
-
-async function getMedia() {
-  if (localStream) return localStream;
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({ 
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        sampleRate: 48000,
-        latency: 0
-      }
-    });
-    return localStream;
-  } catch (err) {
-    statusText.innerText = "MICROBLOQUÉ";
-    return null;
-  }
-}
-
-async function attemptAutoCall(targetId) {
-  if (!localStream || !peer.open || (activeCall && activeCall.open)) return;
-  const call = peer.call(targetId, localStream);
-  if (call) {
-    activeCall = call;
-    handleStream(call);
-  }
-}
-
-function handleStream(call) {
-  call.on('stream', (remoteStream) => {
+  pc.ontrack = (event) => {
+    remoteStream = event.streams[0];
     const audio = new Audio();
     audio.srcObject = remoteStream;
-    audio.play().catch(() => {
-      document.body.addEventListener('click', () => audio.play(), { once: true });
-    });
-    statusText.innerText = "EN LIGNE";
-    
-    // On visualise le flux distant si on veut (mais ici on va juste faire osciller la sphère centrale)
-  });
+    audio.play().catch(() => { document.body.onclick = () => audio.play(); });
+    statusText.innerText = "EN LIGNE (NASA STABLE)";
+    const targetSphere = userRole === 'hubby' ? sphereSheila : sphereAlkhast;
+    startVisualizer(remoteStream, targetSphere);
+  };
 
-  call.on('close', () => {
-    statusText.innerText = "RECONNEXION...";
-    activeCall = null;
-  });
+  const callDoc = ref(db, `calls/alkhast-sheila`);
+  const offerCandidates = ref(db, `calls/alkhast-sheila/offerCandidates`);
+  const answerCandidates = ref(db, `calls/alkhast-sheila/answerCandidates`);
+
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      const candidatesRef = userRole === 'hubby' ? offerCandidates : answerCandidates;
+      push(candidatesRef, event.candidate.toJSON());
+    }
+  };
+
+  // Logique Hubby (Caller)
+  if (userRole === 'hubby') {
+    const offerDescription = await pc.createOffer();
+    await pc.setLocalDescription(offerDescription);
+    await set(callDoc, { sdp: offerDescription.sdp, type: offerDescription.type });
+
+    onValue(callDoc, async (snapshot) => {
+      const data = snapshot.val();
+      if (!pc.currentRemoteDescription && data?.type === 'answer') {
+        const answerDescription = new RTCSessionDescription(data);
+        await pc.setRemoteDescription(answerDescription);
+      }
+    });
+
+    onChildAdded(answerCandidates, (snapshot) => {
+      const candidate = new RTCIceCandidate(snapshot.val());
+      pc.addIceCandidate(candidate);
+    });
+  } 
+  
+  // Logique Wifey (Receiver)
+  else {
+    onValue(callDoc, async (snapshot) => {
+      const data = snapshot.val();
+      if (!pc.currentRemoteDescription && data?.type === 'offer') {
+        const offerDescription = new RTCSessionDescription(data);
+        await pc.setRemoteDescription(offerDescription);
+        const answerDescription = await pc.createAnswer();
+        await pc.setLocalDescription(answerDescription);
+        await set(callDoc, { sdp: answerDescription.sdp, type: answerDescription.type });
+      }
+    });
+
+    onChildAdded(offerCandidates, (snapshot) => {
+      const candidate = new RTCIceCandidate(snapshot.val());
+      pc.addIceCandidate(candidate);
+    });
+  }
+
+  statusText.innerText = "RECHERCHE LIGNE...";
 }
 
-function startVisualizer(stream) {
-  audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  const source = audioContext.createMediaStreamSource(stream);
-  analyser = audioContext.createAnalyser();
-  analyser.fftSize = 256;
+function startVisualizer(stream, element) {
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const source = audioCtx.createMediaStreamSource(stream);
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 64;
   source.connect(analyser);
-
   const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-  function draw() {
+  function animate() {
     analyser.getByteFrequencyData(dataArray);
-    let values = 0;
-    for (let i = 0; i < dataArray.length; i++) {
-      values += dataArray[i];
-    }
-    const average = values / dataArray.length;
-    
-    // Scaling de la sphère basé sur le volume
-    const scale = 1 + (average / 150);
-    sphere.style.transform = `scale(${scale})`;
-    
-    // Ombre proportionnelle
-    if (average > 10) {
-       sphere.style.boxShadow = `0 0 ${average/2}px rgba(0,0,0,0.1)`;
-    } else {
-       sphere.style.boxShadow = 'none';
-    }
-
-    requestAnimationFrame(draw);
+    let volume = dataArray.reduce((p, c) => p + c, 0) / dataArray.length;
+    element.style.transform = `scale(${1 + (volume / 100)})`;
+    element.style.opacity = 0.3 + (volume / 200);
+    requestAnimationFrame(animate);
   }
-  draw();
+  animate();
 }
