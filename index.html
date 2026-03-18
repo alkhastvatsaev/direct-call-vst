@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Direct Call | Minimalist Voice</title>
+  <title>Direct Call | Ligne Privée</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500&display=swap" rel="stylesheet">
@@ -14,19 +14,20 @@
 <body>
   <div id="app">
     <header class="header">
-      <h1>VOICE</h1>
+      <h1>DIRECT</h1>
       <div id="status-container" class="status-indicator">
         <span class="status-dot"></span>
-        <span id="status-text">Prêt pour l'appel</span>
+        <span id="status-text">Initialisation...</span>
       </div>
     </header>
 
     <main class="main-control">
-      <button id="call-button" aria-label="Passer un appel">
+      <!-- Un bouton pulse automatique -->
+      <div id="call-button" class="calling" style="pointer-events: none;">
         <svg viewBox="0 0 24 24">
-          <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
         </svg>
-      </button>
+      </div>
 
       <div class="visualizer-container" id="visualizer">
         <div class="wave-bar" style="animation-delay: -1.1s"></div>
@@ -38,19 +39,9 @@
       </div>
     </main>
 
-    <div class="info-card">
-      <div class="id-display">
-        <span style="color: var(--text-muted); font-size: 0.8rem;">VOTRE ID:</span>
-        <span id="my-id" style="font-family: monospace; font-size: 0.9rem;">...</span>
-        <button id="copy-id" class="copy-btn">COPIER</button>
-      </div>
-      <div id="remote-setup" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-        <input type="text" id="remote-id" placeholder="Enrez l'ID de votre femme" style="width: 100%; padding: 0.6rem; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); color: white; margin-bottom: 0.5rem; font-size: 0.8rem;">
-      </div>
-    </div>
-
     <footer class="footer">
-      Ligne privée directe & sécurisée
+      Ligne Privée sans intermédiaire.<br>
+      Ouvrez l'app pour parler. Fermez pour raccrocher.
     </footer>
   </div>
   <script type="module" src="/main.js"></script>
